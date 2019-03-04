@@ -1,15 +1,15 @@
 #!/bin/bash
 #download wireguard repository and install it
-add-apt-repository -y ppa:wireguard/wireguard
-apt-get update
-apt-get install -y wireguard
+add-apt-repository -y ppa:wireguard/wireguard > /dev/null 2>&1
+apt-get update -qq > /dev/null
+apt-get install -y wireguard -qq > /dev/null
 #Create the private keys for the server
 wg genkey | tee server_private_key | wg pubkey > server_public_key
 #Create the config file of the wireguard interface
 PrivateKey=`cat server_private_key`
 cat <<EOF >/etc/wireguard/wg0.conf
 [Interface]
-Address = 10.200.200.1/24, fe80:1/10
+Address = 10.200.200.1/24, fe80::1/64
 SaveConfig = true
 PrivateKey = $PrivateKey
 ListenPort = 51820
@@ -38,9 +38,9 @@ iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o $networkName -j MASQUERADE
 
 
 #install the web environment prerequisites 
-apt install -y apache2
-apt install -y qrencode
-apt install -y php
+apt install -y apache2 -qq > /dev/null
+apt install -y qrencode -qq > /dev/null
+apt install -y php -qq > /dev/null
 
 #set up the correct firewall routes TODO: improve and check which ports need to be open
 echo "y" | ufw enable
@@ -110,15 +110,21 @@ if (!file_exists(\$currentIP)) {
 	
 	//Create the content for the .conf file that WireGuard uses
 \$QR_code_content = '[Interface]
-Address = 10.200.200.'.\$ip_count.'/32, fe80:'.\$ip_count.'/10
+Address = 10.200.200.'.\$ip_count.'/32, fe80::'.\$ip_count.'/128
 PrivateKey = '.\$privateKey.'DNS = 1.1.1.1
 ListenPort = 51820
 
 [Peer]
 PublicKey = $publicKey
-Endpoint = $ipv4:51820, $ipv6:51820
+Endpoint = $ipv4:51820
 AllowedIPs = 0.0.0.0/0
-PersistentKeepalive = 21';
+PersistentKeepalive = 25
+
+[Peer]
+PublicKey = $publicKey
+Endpoint = [$ipv6]:51820
+AllowedIPs = ::/0
+PersistentKeepalive = 25';
 	
 	//Create a .conf file for WireGuard so that it can correctly parse into a QR code
 	\$conf_file = \$currentIP.'/tmp.conf';
@@ -126,7 +132,7 @@ PersistentKeepalive = 21';
 	fwrite(\$handle, \$QR_code_content);
 	fclose(\$handle);
 	
-	shell_exec('sudo wg set wg0 peer '.\$publicKey.' allowed-ips 10.200.200.'.\$ip_count.'/32');
+	shell_exec('sudo wg set wg0 peer '.\$publicKey.' allowed-ips 10.200.200.'.\$ip_count.'/32,fe80::'.\$ip_count.'/128');
 
 	//Create a QR code that people can use to connect to the server.
 	shell_exec('qrencode -s 10 -d 300 -t png < '.\$currentIP.'/tmp.conf -o '.\$currentIP.'/tmp.png');
