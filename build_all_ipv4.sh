@@ -37,9 +37,9 @@ iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o $networkName -j MASQUERADE
 
 
 #install the web environment prerequisites 
-apt install -y apache2 -qq > /dev/null
-apt install -y qrencode -qq > /dev/null
-apt install -y php -qq > /dev/null
+apt-get install -y apache2 -qq > /dev/null
+apt-get install -y qrencode -qq > /dev/null
+apt-get install -y php -qq > /dev/null
 
 #set up the correct firewall routes TODO: improve and check which ports need to be open
 echo "y" | ufw enable
@@ -117,7 +117,7 @@ ListenPort = 51820
 PublicKey = $publicKey
 Endpoint = $ipv4:51820
 AllowedIPs = 0.0.0.0/0
-PersistentKeepalive = 25;
+PersistentKeepalive = 25';
 	
 	//Create a .conf file for WireGuard so that it can correctly parse into a QR code
 	\$conf_file = \$currentIP.'/tmp.conf';
