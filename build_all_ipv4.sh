@@ -40,6 +40,7 @@ iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o $networkName -j MASQUERADE
 apt-get install -y apache2 -qq > /dev/null
 apt-get install -y qrencode -qq > /dev/null
 apt-get install -y php -qq > /dev/null
+apt-get install -y php-mysql -qq > /dev/null
 
 #set up the correct firewall routes TODO: improve and check which ports need to be open
 echo "y" | ufw enable
@@ -73,76 +74,174 @@ IFS=' ' read -r -a array <<< "$ipadresses"
 ipv6=`echo "${array[0]}"`
 ipv4=`echo "${array[1]}"`
 
+mkdir /var/www/html/QR
+
+cat <<EOF >/var/www/html/QR/conn.php
+<?php 
+try {
+$user = 'Testos';
+$pass = 'Testos123!';
+$dsn = 'mysql:host=localhost;dbname=wgenv';
+$options = array(
+	PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8',
+); 
+$conn = new PDO($dsn, $user, $pass, $options);
+$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e){
+ // report error message
+ echo $e->getMessage();
+}
+?>
+EOF
+
 cat <<EOF >/var/www/html/index.php
-<html><head><title>eduVPN QR code PoC</title></head>
-	<body>
-		<a href="new.php">Create new QR code</a><br><hr>
-		<?php \$directories = glob("./" . '/*' , GLOB_ONLYDIR);
-		foreach (\$directories as \$dir) {
-				?><a href="<?php echo \$dir; ?>/tmp.png">QR code voor: <?php echo \$dir; ?></a><br><br><?php
-		} ?>
-	</body>
+<?php require 'QR/conn.php';
+try {
+$userID = $_SERVER['MELLON_NAME_ID'];
+$stmt = $conn->prepare("SELECT pseudo_id FROM users WHERE pseudo_id = '".$userID."'"); 
+$stmt->execute();
+$result = $stmt->fetchColumn();
+if ($result == "") {
+	$stmt = $conn->prepare("INSERT INTO users VALUES ('".$userID."')"); 
+	$stmt->execute();
+	echo '<script type="text/javascript">';
+	echo 'console.log("New user");';
+	echo '</script>';
+} else {
+	echo '<script type="text/javascript">';
+	echo 'console.log("Known user");';
+	echo '</script>';
+}
+
+$stmt = $conn->prepare("SELECT ID FROM users WHERE pseudo_id = '".$userID."'"); 
+$stmt->execute();
+$userID = $stmt->fetchColumn();
+echo '<script type="text/javascript">';
+echo 'console.log("UserId '.$userID.'");';
+echo '</script>';
+} catch(PDOException $e) {
+	echo '<script type="text/javascript">';
+	echo 'console.log("Connection failed: ' . $e->getMessage() . '");';
+	echo '</script>';
+}	?>
+<html>
+<head>
+  <title>Dashboard</title>
+	<style>
+	form{width:100%;padding-left:30%;padding-right:30%;}
+	input{margin:10px;}
+	h1{width:100%;text-align:center;}
+	div.device {width:25%;border:1px solid black;padding-left:20px;margin-bottom:20px;}
+	div#sorter {width:100%;display:flex;flex-direction:row;flex-wrap:wrap;justify-content:space-evenly;}
+	</style>
+</head>
+<body>
+	<h1>Welkom bij het WireGuard eduVPN dashboard!</h1>
+	<form action="new.php">
+		<input type="text" name="devName" placeholder="Naam apparaat"/><br>
+		<input type="text" name="devSpec" placeholder="Tweede naam"/><br>
+		<input type="radio" name="type" value="notMobile" checked>Not mobile<br>
+        <input type="radio" name="type" value="Mobile">Mobile<br>
+		<input type="submit" value="add device"/>
+	</form>
+	<div id="sorter">
+		<?php
+		$sql = "SELECT deviceName, deviceSpecs, deviceType, config FROM devices WHERE user_id = ".$userID.";";
+		foreach ($conn->query($sql) as $device) {
+		?>
+		<div class="device">
+			<h2 class="customName"><?php echo $device['deviceName']; ?></h2>
+			<h2 class="type"><?php echo $device['deviceSpecs']; ?></h2>
+			<div class="link">
+				<?php if ($device['deviceType'] == "mobile") {
+				?><img src='<?php echo $device['config']; ?>'/><?php
+				} else {
+				?><h4 class="confFile"><?php echo $device['config']; ?></h4><?php
+				}
+				?>
+			</div>
+		</div><?php
+		}
+		?>
+	</div>
+</body>
 </html>
 EOF
 
-publicKey=`cat server_public_key`
+cat <<EOF >/var/www/html/QR/new.php
+<?php require "conn.php";
 
-cat <<EOF >/var/www/html/new.php
-<?php 
-\$currentIP = \$_SERVER['REMOTE_ADDR']; //Might not be the real adress need to fix before release
-\$currentIP = (string)\$currentIP;
+$deviceName = (!empty($_POST['devName']) ? $_POST['devName'] : '');
+$deviceSpecs = (!empty($_POST['devSpec']) ? $_POST['devSpec'] : '');
+$type = (!empty($_POST['type']) ? $_POST['type'] : '');
 
-//Create folder for the current session | NOT safe need to create a unique hashed value to prevent overlap.
-if (!file_exists(\$currentIP)) {
-	mkdir(\$currentIP, 0777);
-	//generate a private and public key for the connection
-	shell_exec('wg genkey | tee '.\$currentIP.'/'.\$currentIP.'_private | wg pubkey > '.\$currentIP.'/'.\$currentIP.'_public');
+$mellonUserID = $_SERVER['MELLON_NAME_ID'];
+$stmt = $conn->prepare("SELECT ID FROM users WHERE pseudo_id = '".$mellonUserID."'"); 
+$stmt->execute();
+$userID = $stmt->fetchColumn();
 
-	//Save the keys as variables
-	\$privateKey = shell_exec('cat '.\$currentIP.'/'.\$currentIP.'_private');
-	\$publicKey = shell_exec('cat '.\$currentIP.'/'.\$currentIP.'_public');
-	
-	\$publicKey = trim(preg_replace('/\s+/', ' ', \$publicKey));
-	
-	\$directories = glob("./" . '/*' , GLOB_ONLYDIR);
-	\$ip_count = count(\$directories) + 1;
-	
-	//Create the content for the .conf file that WireGuard uses
-\$QR_code_content = '[Interface]
-Address = 10.200.200.'.\$ip_count.'/32
-PrivateKey = '.\$privateKey.'DNS = 1.1.1.1
+shell_exec('mkdir '.$mellonUserID);
+shell_exec('sudo wg genkey | tee '.$mellonUserID.'/'.$mellonUserID.'_private | wg pubkey > '.$mellonUserID.'/'.$mellonUserID.'_public');
+
+$privateKey = shell_exec('cat '.$mellonUserID.'/'.$mellonUserID.'_private');
+$publicKey = shell_exec('cat '.$mellonUserID.'/'.$mellonUserID.'_public');
+
+$privateKey = substr($privateKey, 0, -1);
+$publicKey = substr($publicKey, 0, -1);
+
+
+
+$stmt = $conn->prepare("SELECT COUNT(ID) FROM devices WHERE user_id = ".$userID.";");
+$stmt->execute();
+$ip_count = $stmt->fetchColumn();
+
+$stmt = $conn->prepare("SELECT COUNT(ID) FROM users WHERE ID > ".$userID."");
+$stmt->execute();
+$ip_position = $stmt->fetchColumn();
+$ip_position *= 5;
+
+$ip_count = $ip_position + $ip_count;
+
+$stmt = $conn->prepare("INSERT INTO users VALUES ('".$userID."')"); 
+$stmt->execute();
+
+$QR_code_content = '[Interface]
+Address = 10.200.200.'.$ip_count.'/32
+PrivateKey = '.$privateKey.'
+DNS = 1.1.1.1
 ListenPort = 51820
 
 [Peer]
-PublicKey = $publicKey
-Endpoint = $ipv4:51820
+PublicKey = 15dMcxtL+ibbQJQoClOVyL0ewKPgWFId6QlPL8D0pUY=
+Endpoint = 145.100.181.164:51820
 AllowedIPs = 0.0.0.0/0
 PersistentKeepalive = 25';
-	
-	//Create a .conf file for WireGuard so that it can correctly parse into a QR code
-	\$conf_file = \$currentIP.'/tmp.conf';
-	\$handle = fopen(\$conf_file, 'w') or die('Cannot open file:  '.\$conf_file);
-	fwrite(\$handle, \$QR_code_content);
-	fclose(\$handle);
-	
-	shell_exec('sudo wg set wg0 peer '.\$publicKey.' allowed-ips 10.200.200.'.\$ip_count.'/32');
 
-	//Create a QR code that people can use to connect to the server.
-	shell_exec('qrencode -s 10 -d 300 -t png < '.\$currentIP.'/tmp.conf -o '.\$currentIP.'/tmp.png');
-	
-	//Redirect to the QR code
-	header('Location: '.\$currentIP.'/tmp.png');
-} else {
-	echo '<script type="text/javascript">alert("Your QR code already exists!");</script>';
-	echo '<script type="text/javascript">window.location.replace($ipv4);</script>';
-}
+$conf_file = $mellonUserID.'/tmp.conf';
+$handle = fopen($conf_file, 'w') or die('Cannot open file:  '.$conf_file);
+fwrite($handle, $QR_code_content);
+fclose($handle);
+
+shell_exec('sudo wg set wg0 peer '.$publicKey.' allowed-ips 10.200.200.'.$ip_count.'/32');
 
 ?>
 <html>
 	<body>
-		<h1>Hold on for one second while we create your safe connection!</h1>
+		<h2><?php echo 'userID: '.$userID; ?></h2>
+		<h2><?php echo 'Priv: '.$privateKey; ?></h2>
+		<h2><?php echo 'Pub: '.$publicKey; ?></h2>
+		<h2><?php echo 'IP count: ' . $ip_count; ?></h2>
+		<?php if ($type == "mobile") {
+			$QR_ascii = shell_exec('qrencode -t SVG -s 5 < '.$mellonUserID.'/tmp.conf');
+		?>
+		<p style="width:800px;height:800px;"><?php echo $QR_ascii; ?></p>
+		<?php } else { ?>
+		
+		<?php }	?>
 	</body>
 </html>
+<?php shell_exec('rm -R '.$mellonUserID); ?>
+
 EOF
 
 echo "########################################################################"
