@@ -22,19 +22,19 @@ systemctl enable wg-quick@wg0.service
 #enable ip forwarding
 sysctl -w net.ipv4.ip_forward=1
 
+#get the current used network to make sure the vpn traffic gets routed to the correct network
+networkName=`ip addr | awk '/state UP/ {print $2}' | head --bytes -2`
+echo $networkName
+
 #set up the IP tables for wireguard
 iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 iptables -A INPUT -p udp -m udp --dport 51820 -m conntrack --ctstate NEW -j ACCEPT
 iptables -A INPUT -s 10.200.200.0/24 -p tcp -m tcp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
 iptables -A INPUT -s 10.200.200.0/24 -p udp -m udp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
-iptables -A FORWARD -i wg0 -o wg0 -m conntrack --ctstate NEW -j ACCEPT
+iptables -A FORWARD -i wg0 -o $networkName -m conntrack --ctstate NEW -j ACCEPT
 
-#get the current used network to make sure the vpn traffic gets routed to the correct network
-networkName=`ip addr | awk '/state UP/ {print $2}' | head --bytes -2`
-echo $networkName
 iptables -t nat -A POSTROUTING -s 10.200.200.0/24 -o $networkName -j MASQUERADE
-
 
 #install the web environment prerequisites 
 apt-get install -y apache2 -qq > /dev/null
