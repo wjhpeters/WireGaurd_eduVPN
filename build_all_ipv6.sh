@@ -7,6 +7,8 @@ apt-get install -y wireguard -qq > /dev/null
 wg genkey | tee server_private_key | wg pubkey > server_public_key
 #Create the config file of the wireguard interface
 PrivateKey=`cat server_private_key`
+PublicKey=`cat server_public_key`
+
 cat <<EOF >/etc/wireguard/wg0.conf
 [Interface]
 Address = 10.200.200.1/24, fd42:42:42::1/64
@@ -52,6 +54,29 @@ apt-get install -y php -qq > /dev/null
 apt-get install -y php-mysql -qq > /dev/null
 apt-get install -y mysql-server -qq > /dev/null
 
+echo "Please enter your prefered username for MySQL:"
+read username
+echo "Please enter your prefered password for MySQL:"
+read password
+
+ipadresses=`hostname -i`
+IFS=' ' read -r -a array <<< "$ipadresses"
+ipv6=`echo "${array[0]}"`
+ipv4=`echo "${array[2]}"`
+
+mysql -e "CREATE USER ${username}@localhost IDENTIFIED BY '${password}';"
+
+mysql -u $username -p $password <<MY_QUERY
+CREATE DATABASE WireGuardDB;
+USE WireGuardDB;
+CREATE TABLE IF NOT EXISTS server (ID INT AUTO_INCREMENT PRIMARY KEY, public_key VARCHAR(200) NOT NULL, private_key VARCHAR(200) NOT NULL, public_ip VARCHAR(50) NOT NULL);
+CREATE TABLE IF NOT EXISTS users (ID INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(200) UNIQUE NOT NULL, user_pass VARCHAR(64) NOT NULL);
+CREATE TABLE IF NOT EXISTS tunnels (ID INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, device_name VARCHAR(200) NOT NULL, access_token VARCHAR(512) NOT NULL, experation_date DATE NOT NULL, CONSTRAINT `fk_user_tunnels` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS logs (ID INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, log_type INT NOT NULL, log_content BLOB NOT NULL, experation_date DATE NOT NULL, saved BIT NOT NULL, CONSTRAINT `fk_user_logs` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`) ON DELETE CASCADE);
+INSERT INTO server (public_key, private_key, public_ip) VALUES ("$PublicKey", "$PrivateKey", "$ipv4");
+
+MY_QUERY
+
 #set up the correct firewall routes TODO: improve and check which ports need to be open
 echo "y" | ufw enable
 
@@ -80,81 +105,24 @@ rm /var/www/html/index.html
 #make sure the webserver can add folders
 chown -R www-data:www-data /var/www/html
 #get the ip adresses that are required for the interface setup
-ipadresses=`hostname -i`
-IFS=' ' read -r -a array <<< "$ipadresses"
-ipv6=`echo "${array[0]}"`
-ipv4=`echo "${array[2]}"`
 
-cat <<EOF >/var/www/html/index.php
-<html><head><title>eduVPN QR code PoC</title></head>
-	<body>
-		<a href="new.php">Create new QR code</a><br><hr>
-		<?php \$directories = glob("./" . '/*' , GLOB_ONLYDIR);
-		foreach (\$directories as \$dir) {
-				?><a href="<?php echo \$dir; ?>/tmp.png">QR code voor: <?php echo \$dir; ?></a><br><br><?php
-		} ?>
-	</body>
-</html>
-EOF
 
-publicKey=`cat server_public_key`
-
-cat <<EOF >/var/www/html/new.php
+cat <<EOF >/var/www/html/conn.php
 <?php 
-\$currentIP = \$_SERVER['REMOTE_ADDR']; //Might not be the real adress need to fix before release
-\$currentIP = (string)\$currentIP;
-
-//Create folder for the current session | NOT safe need to create a unique hashed value to prevent overlap.
-if (!file_exists(\$currentIP)) {
-	mkdir(\$currentIP, 0777);
-	//generate a private and public key for the connection
-	shell_exec('wg genkey | tee '.\$currentIP.'/'.\$currentIP.'_private | wg pubkey > '.\$currentIP.'/'.\$currentIP.'_public');
-
-	//Save the keys as variables
-	\$privateKey = shell_exec('cat '.\$currentIP.'/'.\$currentIP.'_private');
-	\$publicKey = shell_exec('cat '.\$currentIP.'/'.\$currentIP.'_public');
-	
-	\$publicKey = trim(preg_replace('/\s+/', ' ', \$publicKey));
-	
-	\$directories = glob("./" . '/*' , GLOB_ONLYDIR);
-	\$ip_count = count(\$directories) + 1;
-	
-	//Create the content for the .conf file that WireGuard uses
-\$QR_code_content = '[Interface]
-Address = 10.200.200.'.\$ip_count.'/32, fd42:42:42::'.\$ip_count.'/128
-PrivateKey = '.\$privateKey.'DNS = 1.1.1.1
-ListenPort = 51820
-
-[Peer]
-PublicKey = $publicKey
-Endpoint = $ipv6:51820
-AllowedIPs = 0.0.0.0/0, ::/0
-PersistentKeepalive = 25';
-	
-	//Create a .conf file for WireGuard so that it can correctly parse into a QR code
-	\$conf_file = \$currentIP.'/tmp.conf';
-	\$handle = fopen(\$conf_file, 'w') or die('Cannot open file:  '.\$conf_file);
-	fwrite(\$handle, \$QR_code_content);
-	fclose(\$handle);
-	
-	shell_exec('sudo wg set wg0 peer '.\$publicKey.' allowed-ips 10.200.200.'.\$ip_count.'/32,fd42:42:42::'.\$ip_count.'/128');
-
-	//Create a QR code that people can use to connect to the server.
-	shell_exec('qrencode -s 10 -d 300 -t png < '.\$currentIP.'/tmp.conf -o '.\$currentIP.'/tmp.png');
-	
-	//Redirect to the QR code
-	header('Location: '.\$currentIP.'/tmp.png');
-} else {
-	echo '<script type="text/javascript">alert("Your QR code already exists!");</script>';
-	echo '<script type="text/javascript">window.location.replace($ipv4);</script>';
+try {
+$user = '$username';
+$pass = '$password';
+$dsn = 'mysql:host=localhost;dbname=WireGuardDB';
+$options = array(
+	PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8',
+); 
+$conn = new PDO($dsn, $user, $pass, $options);
+$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e){
+ // report error message
+ echo $e->getMessage();
 }
-
 ?>
-<html>
-	<body>
-		<h1>Hold on for one second while we create your safe connection!</h1>
-	</body>
-</html>
 EOF
 
 echo "########################################################################"

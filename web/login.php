@@ -1,20 +1,28 @@
 <?php require "conn.php";
 
-$username = $_GET['user']; 
-$password = $_GET['pass']; 
+$username = (!empty($_POST['user_name']) ? $_POST['user_name'] : '');
+$password = (!empty($_POST['user_pass']) ? $_POST['user_pass'] : '');
 try {
-	$stmt = $conn->prepare("SELECT user_pass FROM users WHERE username = '" . $username . "'"); 
+	$stmt = $conn->prepare("SELECT user_pass FROM users WHERE username = '".$username."'");
 	$stmt->execute();
 	$hash = $stmt->fetchColumn();
 	$password = strtoupper(hash('sha256', $password));
 	if($password == $hash) { 
-	echo "Succes!";
+		echo '<script type="text/javascript">';
+		echo 'window.location = "account.php";';
+		echo '</script>';
 	} else {
-	echo "Fail!";
+		echo '<script type="text/javascript">';
+		echo 'alert("Wrong Password!");';
+		echo 'window.location = "index.php";';
+		echo '</script>';
 	}
 }
 catch(PDOException $e) {
-	echo "Fail!";
+		echo '<script type="text/javascript">';
+		echo 'alert("Wrong username!");';
+		echo 'window.location = "index.php";';
+		echo '</script>';
 }
 $conn = null;
 $stmt = null;
