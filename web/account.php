@@ -1,4 +1,10 @@
-<?php require 'check_ses.php'; ?>
+<?php require "session.php"; 
+$today = date("Y-m-d");
+$expDate = date("Y-m-d", strtotime('+2 months'));
+$userID = $_SESSION["userID"];
+$encryptedName = strtoupper(hash('sha256', $userID));
+shell_exec('mkdir '.$encryptedName);
+?>
 <html>
 <head>
   <title>Dashboard</title>
@@ -14,26 +20,25 @@
 	<h1>Welkom bij het WireGuard eduVPN dashboard!</h1>
 	<form action="new.php" method="POST">
 		<input type="text" name="devName" placeholder="Naam apparaat"/><br>
-		<input type="text" name="devSpec" placeholder="Tweede naam"/><br>
-		<input type="radio" name="type" value="notMobile" checked>Not mobile<br>
-        <input type="radio" name="type" value="Mobile">Mobile<br>
-		<input type="submit" value="add device"/>
+		<input type="date" name="expdate" value="<?php echo $today; ?>" min="<?php echo $today; ?>" max="<?php echo $expDate; ?>"><br>
+		<input type="submit" value="add tunnel"/>
 	</form>
 	<div id="sorter">
 		<?php
-		$sql = "SELECT deviceName, deviceSpecs, deviceType, config FROM devices WHERE user_id = ".$userID.";";
+		$sql = "SELECT deviceName, access_token, experation_date FROM tunnels WHERE user_id = ".$userID.";";
 		foreach ($conn->query($sql) as $device) {
+			$conf_file = $encryptedName.'/tmp.conf';
+			$handle = fopen($conf_file, 'w') or die('Cannot open file:  '.$conf_file);
+			fwrite($handle, $device['access_token']);
+			fclose($handle);
+			$QR_ascii = shell_exec('qrencode -t SVG -s 5 < '.$encryptedName.'/tmp.conf');
 		?>
 		<div class="device">
 			<h2 class="customName"><?php echo $device['deviceName']; ?></h2>
-			<h2 class="type"><?php echo $device['deviceSpecs']; ?></h2>
 			<div class="link">
-				<?php if ($device['deviceType'] == "mobile") {
-				?><img src='<?php echo $device['config']; ?>'/><?php
-				} else {
-				?><h4 class="confFile"><?php echo $device['config']; ?></h4><?php
-				}
-				?>
+				<h4 class="confFile"><?php echo $device['access_token']; ?></h4>
+				<br><hr><br>
+				<p style="width:800px;height:800px;"><?php echo $QR_ascii; ?></p>
 			</div>
 		</div><?php
 		}

@@ -1,15 +1,22 @@
-<?php 
+<?php require "conn.php";
+session_start(); 
+$userID = $_SESSION["userID"];
 try {
-$user = 'Testos';
-$pass = 'Testos123!';
-$dsn = 'mysql:host=localhost;dbname=wgenv';
-$options = array(
-	PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8',
-); 
-$conn = new PDO($dsn, $user, $pass, $options);
-$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e){
- // report error message
- echo $e->getMessage();
+	
+	$stmt = $conn->prepare("SELECT username FROM users WHERE ID = '".$userID."'"); 
+	$stmt->execute();
+	
+	if($stmt->rowCount() > 0){
+	}
+	else {
+		echo '<script type="text/javascript">';
+		echo 'window.location = "index.php";'; 
+		echo '</script>';
+	}
+}
+catch(PDOException $e) {
+		echo '<script type="text/javascript">';
+		echo 'window.location = "index.php";'; 
+		echo '</script>';
 }
 ?>

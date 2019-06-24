@@ -7,7 +7,11 @@ try {
 	$stmt->execute();
 	$hash = $stmt->fetchColumn();
 	$password = strtoupper(hash('sha256', $password));
-	if($password == $hash) { 
+	if($password == $hash) {
+		$stmt = $conn->prepare("SELECT ID FROM users WHERE username = '".$username."'");
+		$stmt->execute();
+		$userID = $stmt->fetchColumn();
+		$_SESSION["userID"] = $userID;		
 		echo '<script type="text/javascript">';
 		echo 'window.location = "account.php";';
 		echo '</script>';

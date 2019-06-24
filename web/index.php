@@ -1,3 +1,9 @@
+<?php
+session_start();
+$_SESSION["userID"] = "";
+session_unset();
+session_destroy(); 
+?>
 <html>
 <head>
 </head>

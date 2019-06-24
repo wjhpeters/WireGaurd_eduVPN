@@ -4,9 +4,10 @@ $dev_name = $_POST['devname'];
 $exp_date = $_POST['expdate']; 
 $exp_date = strtotime($exp_date);
 $exp_date = date('Y-m-d', $exp_date);
- 
+$userID = $_SESSION["userID"];
+
 try {
-	$encryptedName = sha256 has van het ID
+	$encryptedName = strtoupper(hash('sha256', $userID));
 	shell_exec('mkdir '.$encryptedName);
 	shell_exec('sudo wg genkey | tee '.$encryptedName.'/'.$encryptedName.'_private | wg pubkey > '.$encryptedName.'/'.$encryptedName.'_public');
 
@@ -33,14 +34,9 @@ try {
 	AllowedIPs = 0.0.0.0/0, ::0
 	PersistentKeepalive = 25';
 
-	$conf_file = $encryptedName.'/tmp.conf';
-	$handle = fopen($conf_file, 'w') or die('Cannot open file:  '.$conf_file);
-	fwrite($handle, $QR_code_content);
-	fclose($handle);
-
-	shell_exec('sudo wg set wg0 peer '.$publicKey.' allowed-ips 10.200.200.'.$ip_count.'/32,');
+	shell_exec('sudo wg set wg0 peer '.$publicKey.' allowed-ips 10.200.200.'.$ip_count.'/32,fd42:42:42::'.$ip_count.'/128');
 	
-	$stmt = $conn->prepare("INSERT INTO devices (user_id, device_name, config, experation_date) VALUES (".$userID.", '".$dev_name."', '".$QR_code_content."', '".$exp_date."')"); 
+	$stmt = $conn->prepare("INSERT INTO tunnels (user_id, device_name, access_token, experation_date) VALUES (".$userID.", '".$dev_name."', '".$QR_code_content."', '".$exp_date."')"); 
 	$stmt->execute();
 	
 	shell_exec('rm -R '.$encryptedName);

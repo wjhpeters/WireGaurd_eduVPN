@@ -106,7 +106,6 @@ rm /var/www/html/index.html
 chown -R www-data:www-data /var/www/html
 #get the ip adresses that are required for the interface setup
 
-
 cat <<EOF >/var/www/html/conn.php
 <?php 
 try {
@@ -125,10 +124,13 @@ $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 ?>
 EOF
 
+mv web/index.php /var/www/html/index.php
+mv web/login.php /var/www/html/login.php
+mv web/new.php /var/www/html/new.php
+mv web/account.php /var/www/html/account.php
+mv web/session.php /var/www/html/session.php
+
 echo "########################################################################"
 echo "# Webserver running on $ipv4"
 echo "# 	Connect to generate QR code for a connection."
-echo "#"
-echo "# WireGuard server running on $ipv4 :51820 or $ipv6 :51820"
-echo "# 	Connect to the server with this public key: $publicKey"
 echo "########################################################################"
