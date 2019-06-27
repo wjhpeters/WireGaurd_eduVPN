@@ -34,6 +34,7 @@ ip6tables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 iptables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 ip6tables -A FORWARD -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
 iptables -A INPUT -p udp -m udp --dport 51820 -m conntrack --ctstate NEW -j ACCEPT
+ip6tables -A INPUT -p udp -m udp --dport 51820 -m conntrack --ctstate NEW -j ACCEPT
 iptables -A INPUT -s 10.200.200.0/24 -p tcp -m tcp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
 ip6tables -A INPUT -s fd42:42:42::0/64 -p tcp -m tcp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
 iptables -A INPUT -s 10.200.200.0/24 -p udp -m udp --dport 53 -m conntrack --ctstate NEW -j ACCEPT
@@ -53,6 +54,9 @@ apt-get install -y qrencode -qq > /dev/null
 apt-get install -y php -qq > /dev/null
 apt-get install -y php-mysql -qq > /dev/null
 apt-get install -y mysql-server -qq > /dev/null
+
+phpenmod pdo_mysql
+service apache2 restart 
 
 echo "Please enter your prefered username for MySQL:"
 read username
@@ -76,8 +80,8 @@ CREATE TABLE IF NOT EXISTS tunnels (ID INT AUTO_INCREMENT PRIMARY KEY, user_id I
 CREATE TABLE IF NOT EXISTS logs (ID INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, log_type INT NOT NULL, log_content BLOB NOT NULL, experation_date DATE NOT NULL, saved BIT NOT NULL);
 ALTER TABLE tunnels ADD CONSTRAINT fk_user_tunnels FOREIGN KEY(user_id) REFERENCES users(ID) ON DELETE CASCADE;
 ALTER TABLE logs ADD CONSTRAINT fk_user_logs FOREIGN KEY(user_id) REFERENCES users(ID) ON DELETE CASCADE;
-INSERT INTO server (public_key, private_key, public_ip) VALUES ("$PublicKey", "$PrivateKey", "$ipv4");
-INSERT INTO users (username, user_pass) VALUES ("Admin", "02b8188db90c04ccfc28fe217c8bb0cffd80bbb76119a76cc2ac276d9f96ec59");
+INSERT INTO server (public_key, public_ip) VALUES ("$PublicKey", "$ipv4");
+INSERT INTO users (username, user_pass) VALUES ("Admin", "02B8188DB90C04CCFC28FE217C8BB0CFFD80BBB76119A76CC2AC276D9F96EC59");
 MY_QUERY
 
 #set up the correct firewall routes TODO: improve and check which ports need to be open
@@ -106,8 +110,6 @@ echo 'www-data  ALL=(ALL) NOPASSWD: /usr/bin/wg' >> /etc/sudoers
 #set up the web environment for the PoC TODO: clean up PHP code
 rm /var/www/html/index.html
 #make sure the webserver can add folders
-chown -R www-data:www-data /var/www/html
-#get the ip adresses that are required for the interface setup
 
 cat <<EOF >/var/www/html/conn.php
 <?php 
@@ -132,6 +134,8 @@ mv web/login.php /var/www/html/login.php
 mv web/new.php /var/www/html/new.php
 mv web/account.php /var/www/html/account.php
 mv web/session.php /var/www/html/session.php
+
+chown -R www-data:www-data /var/www/html
 
 echo "########################################################################"
 echo "# Webserver running on $ipv4"

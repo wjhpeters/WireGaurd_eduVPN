@@ -21,7 +21,14 @@ try {
 	$stmt->execute();
 	$ip_count = $stmt->fetchColumn();
 	$ip_count = $ip_count + 2;
-
+	$stmt = $conn->prepare("SELECT public_ip FROM server WHERE ID = 1");
+	$stmt->execute();
+	$ipv4 = $stmt->fetchColumn();
+	
+	$stmt = $conn->prepare("SELECT public_key FROM server WHERE ID = 1");
+	$stmt->execute();
+	$serverPublicKey = $stmt->fetchColumn();
+	
 	$QR_code_content = '[Interface]
 	Address = 10.200.200.'.$ip_count.'/32, fd42:42:42::'.$ip_count.'/128
 	PrivateKey = '.$privateKey.'
@@ -29,8 +36,8 @@ try {
 	ListenPort = 51820
 
 	[Peer]
-	PublicKey = '.$PublicKey.'
-	Endpoint = '.$ipv4.'
+	PublicKey = '.$serverPublicKey.'
+	Endpoint = '.$ipv4.':51820
 	AllowedIPs = 0.0.0.0/0, ::0
 	PersistentKeepalive = 25';
 
