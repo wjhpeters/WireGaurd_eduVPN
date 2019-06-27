@@ -67,7 +67,7 @@ ipv4=`echo "${array[2]}"`
 mysql -e "CREATE USER ${username}@localhost IDENTIFIED BY '${password}';"
 mysql -e "grant all privileges on *.* to ${username}@localhost;"
 
-mysql -u $username -p $password <<MY_QUERY
+mysql -u$username -p$password <<MY_QUERY
 CREATE DATABASE WireGuardDB;
 USE WireGuardDB;
 CREATE TABLE IF NOT EXISTS server (ID INT AUTO_INCREMENT PRIMARY KEY, public_key VARCHAR(200) NOT NULL, private_key VARCHAR(200) NOT NULL, public_ip VARCHAR(50) NOT NULL);
