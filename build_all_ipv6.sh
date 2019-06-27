@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS logs (ID INT AUTO_INCREMENT PRIMARY KEY, user_id INT 
 ALTER TABLE tunnels ADD CONSTRAINT fk_user_tunnels FOREIGN KEY(user_id) REFERENCES users(ID) ON DELETE CASCADE;
 ALTER TABLE logs ADD CONSTRAINT fk_user_logs FOREIGN KEY(user_id) REFERENCES users(ID) ON DELETE CASCADE;
 INSERT INTO server (public_key, private_key, public_ip) VALUES ("$PublicKey", "$PrivateKey", "$ipv4");
-
+INSERT INTO users (username, user_pass) VALUES ("Admin", "02b8188db90c04ccfc28fe217c8bb0cffd80bbb76119a76cc2ac276d9f96ec59");
 MY_QUERY
 
 #set up the correct firewall routes TODO: improve and check which ports need to be open
@@ -112,17 +112,17 @@ chown -R www-data:www-data /var/www/html
 cat <<EOF >/var/www/html/conn.php
 <?php 
 try {
-$user = '$username';
-$pass = '$password';
-$dsn = 'mysql:host=localhost;dbname=WireGuardDB';
-$options = array(
+\$user = '$username';
+\$pass = '$password';
+\$dsn = 'mysql:host=localhost;dbname=WireGuardDB';
+\$options = array(
 	PDO::MYSQL_ATTR_INIT_COMMAND => 'SET NAMES utf8',
 ); 
-$conn = new PDO($dsn, $user, $pass, $options);
-$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e){
+\$conn = new PDO(\$dsn, \$user, \$pass, \$options);
+\$conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException \$e){
  // report error message
- echo $e->getMessage();
+ echo \$e->getMessage();
 }
 ?>
 EOF
@@ -136,4 +136,5 @@ mv web/session.php /var/www/html/session.php
 echo "########################################################################"
 echo "# Webserver running on $ipv4"
 echo "# 	Connect to generate QR code for a connection."
+echo "# 	Log in using the account 'admin' with the password 'Testos12'"
 echo "########################################################################"

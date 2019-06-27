@@ -11,7 +11,7 @@ session_destroy();
 	<h1></h1><br>
 	<h2></h2><br>
 	<hr>
-	<form action="login.php" type="POST">
+	<form action="login.php" method="POST">
 		<b>Username</b>
 		<input type="text" placeholder="username" name="user_name"><br><br>
 		<b>Password</b>
