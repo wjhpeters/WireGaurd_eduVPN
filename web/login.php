@@ -1,5 +1,5 @@
 <?php require "conn.php";
-
+session_start();
 $username = (!empty($_POST['user_name']) ? $_POST['user_name'] : '');
 $password = (!empty($_POST['user_pass']) ? $_POST['user_pass'] : '');
 try {

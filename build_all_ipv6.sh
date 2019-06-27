@@ -1,4 +1,10 @@
 #!/bin/bash
+
+echo "Please enter your prefered username for MySQL:"
+read username
+echo "Please enter your prefered password for MySQL:"
+read password
+
 #download wireguard repository and install it
 add-apt-repository -y ppa:wireguard/wireguard > /dev/null 2>&1
 apt-get update -qq > /dev/null
@@ -9,12 +15,17 @@ wg genkey | tee server_private_key | wg pubkey > server_public_key
 PrivateKey=`cat server_private_key`
 PublicKey=`cat server_public_key`
 
+networkName=`ip addr | awk '/state UP/ {print $2}' | head --bytes -2`
+echo $networkName
+
 cat <<EOF >/etc/wireguard/wg0.conf
 [Interface]
 Address = 10.200.200.1/24, fd42:42:42::1/64
 SaveConfig = true
 PrivateKey = $PrivateKey
 ListenPort = 51820
+PostUp = iptables -t nat -A POSTROUTING -o $networkName -j MASQUERADE; ip6tables -t nat -A POSTROUTING -o $networkName -j MASQUERADE
+PostDown = iptables -t nat -D POSTROUTING -o $networkName -j MASQUERADE; ip6tables -t nat -D POSTROUTING -o $networkName -j MASQUERADE
 EOF
 
 #Create the network interface based on the wg0.conf file
@@ -24,9 +35,6 @@ systemctl enable wg-quick@wg0.service
 #enable ip forwarding
 sysctl -w net.ipv4.ip_forward=1
 sysctl -w net.ipv6.conf.all.forwarding=1
-
-networkName=`ip addr | awk '/state UP/ {print $2}' | head --bytes -2`
-echo $networkName
 
 #set up the IP tables for wireguard
 iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
@@ -54,14 +62,6 @@ apt-get install -y qrencode -qq > /dev/null
 apt-get install -y php -qq > /dev/null
 apt-get install -y php-mysql -qq > /dev/null
 apt-get install -y mysql-server -qq > /dev/null
-
-phpenmod pdo_mysql
-service apache2 restart 
-
-echo "Please enter your prefered username for MySQL:"
-read username
-echo "Please enter your prefered password for MySQL:"
-read password
 
 ipadresses=`hostname -i`
 IFS=' ' read -r -a array <<< "$ipadresses"
@@ -137,8 +137,11 @@ mv web/session.php /var/www/html/session.php
 
 chown -R www-data:www-data /var/www/html
 
+phpenmod pdo_mysql
+service apache2 restart 
+
 echo "########################################################################"
 echo "# Webserver running on $ipv4"
 echo "# 	Connect to generate QR code for a connection."
-echo "# 	Log in using the account 'admin' with the password 'Testos12'"
+echo "# 	Log in using the account 'Admin' with the password 'Testos12'"
 echo "########################################################################"
