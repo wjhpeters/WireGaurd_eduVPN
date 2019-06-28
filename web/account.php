@@ -25,7 +25,7 @@ shell_exec('mkdir '.$encryptedName);
 	</form>
 	<div id="sorter">
 		<?php
-		$sql = "SELECT deviceName, access_token, experation_date FROM tunnels WHERE user_id = ".$userID.";";
+		$sql = "SELECT device_name, access_token, experation_date FROM tunnels WHERE user_id = ".$userID.";";
 		foreach ($conn->query($sql) as $device) {
 			$conf_file = $encryptedName.'/tmp.conf';
 			$handle = fopen($conf_file, 'w') or die('Cannot open file:  '.$conf_file);
@@ -34,7 +34,7 @@ shell_exec('mkdir '.$encryptedName);
 			$QR_ascii = shell_exec('qrencode -t SVG -s 5 < '.$encryptedName.'/tmp.conf');
 		?>
 		<div class="device">
-			<h2 class="customName"><?php echo $device['deviceName']; ?></h2>
+			<h2 class="customName"><?php echo $device['device_name']; ?></h2>
 			<div class="link">
 				<h4 class="confFile"><?php echo $device['access_token']; ?></h4>
 				<br><hr><br>
@@ -46,3 +46,4 @@ shell_exec('mkdir '.$encryptedName);
 	</div>
 </body>
 </html>
+<?php shell_exec('rm -R '.$encryptedName); ?>

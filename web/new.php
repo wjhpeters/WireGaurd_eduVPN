@@ -1,6 +1,6 @@
 <?php require "session.php";
  
-$dev_name = $_POST['devname']; 
+$dev_name = $_POST['devName']; 
 $exp_date = $_POST['expdate']; 
 $exp_date = strtotime($exp_date);
 $exp_date = date('Y-m-d', $exp_date);
@@ -48,7 +48,9 @@ try {
 	
 	shell_exec('rm -R '.$encryptedName);
 	
-	echo $QR_code_content;
+	echo '<script type="text/javascript">';
+	echo 'window.location = "account.php";';
+	echo '</script>';
 	
 }
 catch(PDOException $e) {
