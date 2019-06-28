@@ -12,7 +12,7 @@ shell_exec('mkdir '.$encryptedName);
 	form{width:100%;padding-left:30%;padding-right:30%;}
 	input{margin:10px;}
 	h1{width:100%;text-align:center;}
-	div.device {width:25%;border:1px solid black;padding-left:20px;margin-bottom:20px;}
+	div.device {width:50%;border:1px solid black;padding-left:20px;margin-bottom:20px;}
 	div#sorter {width:100%;display:flex;flex-direction:row;flex-wrap:wrap;justify-content:space-evenly;}
 	</style>
 </head>
