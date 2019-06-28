@@ -72,9 +72,9 @@ mysql -e "CREATE USER ${username}@localhost IDENTIFIED BY '${password}';"
 mysql -e "grant all privileges on *.* to ${username}@localhost;"
 
 mysql -u$username -p$password <<MY_QUERY
-CREATE DATABASE WireGuardDB;
+CREATE DATABASE IF NOT EXISTS WireGuardDB;
 USE WireGuardDB;
-CREATE TABLE IF NOT EXISTS server (ID INT AUTO_INCREMENT PRIMARY KEY, public_key VARCHAR(200) NOT NULL, private_key VARCHAR(200) NOT NULL, public_ip VARCHAR(50) NOT NULL);
+CREATE TABLE IF NOT EXISTS server (ID INT AUTO_INCREMENT PRIMARY KEY, public_key VARCHAR(200) NOT NULL, public_ip VARCHAR(50) NOT NULL);
 CREATE TABLE IF NOT EXISTS users (ID INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(200) UNIQUE NOT NULL, user_pass VARCHAR(64) NOT NULL);
 CREATE TABLE IF NOT EXISTS tunnels (ID INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, device_name VARCHAR(200) NOT NULL, access_token VARCHAR(512) NOT NULL, experation_date DATE NOT NULL);
 CREATE TABLE IF NOT EXISTS logs (ID INT AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, log_type INT NOT NULL, log_content BLOB NOT NULL, experation_date DATE NOT NULL, saved BIT NOT NULL);
